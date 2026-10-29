@@ -1,0 +1,26 @@
+Echelon → Zwift Python bridge
+Python bridge, Vue admin, and optional Omarchy controls.
+Adapted and modified on 2026-10-28; distributed under GPL-3.0-only.
+
+Protocol commands, packet decoding knowledge, and the default 33 x 11 power
+lookup table are adapted from QZ / qdomyos-zwift, Roberto Viola and contributors.
+https://github.com/cagnulein/qdomyos-zwift
+Source: src/devices/echelonconnectsport/echelonconnectsport.cpp
+QZ source is distributed under GPL version 3. This derivative is GPL-3.0-only.
+The complete license is in LICENSE. Preserve this attribution and provide
+corresponding source and license notices where required on redistribution.
+
+BLE libraries are separately licensed by their respective authors:
+Bleak: https://github.com/hbldh/bleak
+Bless: https://github.com/kevincar/bless
+BlueZ D-Bus APIs: https://bluez.readthedocs.io/
+
+The Vue runtime, Tailwind styles, Vite-generated browser helper, and Omarchy
+integration patterns retain their respective MIT notices. Bless, Bleak, and
+dbus-next also retain their MIT notices. Full permission and copyright texts
+are preserved in THIRD_PARTY_NOTICES.txt and copied into production frontend
+builds. Other separately installed dependencies retain their own licenses.
+
+This is an independent compatibility project, unaffiliated with Echelon,
+Zwift, QZ, or Omarchy. Brand names describe compatibility, not endorsement.
+Power is an uncalibrated estimate, not a measured power-meter reading.

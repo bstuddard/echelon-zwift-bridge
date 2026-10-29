@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "local.echelon-bridge",
+  "name": "Echelon Bridge",
+  "version": "1.0.0",
+  "description": "Start, open, and stop the local Echelon to Zwift bridge",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "Widget.qml" },
+  "barWidget": {
+    "displayName": "Echelon Bridge",
+    "description": "Left-click to start/open; right-click to stop",
+    "category": "Applications",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+project_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$project_dir"
+action="${1:-start}"
+if (($#)); then shift; fi
+case "$action" in
+  build)
+    npm --prefix frontend ci
+    exec npm --prefix frontend run build
+    ;;
+  start|run)
+    if [[ ! -f "$project_dir/backend/frontend_dist/index.html" ]]; then
+      "$project_dir/bridge" build
+    fi
+    if [[ ! -x "$project_dir/.venv/bin/echelon-bridge" ]]; then
+      uv sync --frozen
+    fi
+    if [[ "$action" == run ]]; then
+      exec "$project_dir/.venv/bin/echelon-bridge" "$@"
+    fi
+    if systemctl --user is-active --quiet echelon-bridge.service; then
+      printf '%s\n' 'Bridge already running. Use ./bridge status, or ./bridge stop before changing options.'
+      exit 0
+    fi
+    "$project_dir/.venv/bin/echelon-bridge" --check-config "$@"
+    systemd-run --user --unit=echelon-bridge --collect \
+      --description='Echelon to Zwift local Bluetooth bridge' \
+      --property="WorkingDirectory=$project_dir" \
+      --property=Restart=on-failure --property=RestartSec=3s \
+      --property=RestartPreventExitStatus=2 \
+      --property=UMask=0077 --property=NoNewPrivileges=yes \
+      --property=TimeoutStopSec=15s \
+      -- "$project_dir/.venv/bin/echelon-bridge" "$@"
+    printf '%s\n' 'Starting bridge. Admin: http://127.0.0.1:8000 (or your --port).' 'Use ./bridge logs to watch bike discovery.'
+    ;;
+  stop) exec systemctl --user stop echelon-bridge.service ;;
+  status)
+    systemctl --user --no-pager --full status echelon-bridge.service
+    ;;
+  logs) exec journalctl --user -u echelon-bridge.service -n 40 -f ;;
+  test) exec uv run --extra dev pytest -q ;;
+  *) printf '%s\n' 'Usage: ./bridge [build|start|run|stop|status|logs|test] [bridge options]' >&2; exit 2 ;;
+esac

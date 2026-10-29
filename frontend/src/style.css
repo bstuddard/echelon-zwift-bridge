@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Segoe UI", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+@layer base {
+  html { color: #26302c; background: #f6f7f5; font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+  button, a, summary { -webkit-tap-highlight-color: transparent; }
+  button { cursor: pointer; }
+  button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px solid #7f9c58; outline-offset: 4px; }
+  button:disabled { cursor: wait; opacity: .6; }
+}
+
+@layer components {
+  .sidebar { @apply flex flex-col border-b border-stone-200/70 bg-white px-5 py-6 lg:sticky lg:top-0 lg:h-screen lg:w-60 lg:shrink-0 lg:border-r lg:border-b-0 lg:px-6 lg:py-8; }
+  .nav-item { @apply flex flex-1 items-center gap-3 rounded-lg px-3 py-3 text-left text-xs font-medium text-stone-500 transition-colors hover:bg-stone-50 hover:text-stone-900 lg:flex-none; }
+  .nav-item svg { @apply size-[17px] shrink-0; }
+  .nav-item.active { @apply bg-[#edf3e6] text-[#466235]; }
+  .eyebrow { @apply text-[10px] font-medium tracking-wide text-stone-400; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg border px-3.5 py-2.5 text-xs font-medium transition-colors; }
+  .btn-white { @apply border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:bg-stone-50; }
+  .btn-dark { @apply border-[#243a30] bg-[#243a30] text-white hover:bg-[#344e40]; }
+  .chip { @apply inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] leading-tight font-medium whitespace-nowrap; }
+  .chip-green { @apply bg-[#eef4e7] text-[#5d7d40]; }
+  .chip-stone { @apply bg-[#f1f2ef] text-stone-500; }
+  .section-title { @apply text-[14px] font-semibold tracking-[-.02em]; }
+  .section-subtitle { @apply mt-1 text-[11px] leading-relaxed text-stone-400; }
+  .status-banner { @apply mt-6 flex items-center gap-3 rounded-xl border px-4 py-4; }
+  .status-icon { @apply flex size-9 shrink-0 items-center justify-center rounded-full bg-white/70 text-lg; }
+  .status-neutral { @apply border-[#dce5d0] bg-[#f0f4e9] text-[#475d34]; }
+  .status-ready { @apply border-[#cdddba] bg-[#eaf3e0] text-[#46612d]; }
+  .status-warning { @apply border-amber-200 bg-amber-50 text-amber-900; }
+  .status-error { @apply border-red-200 bg-red-50 text-red-900; }
+  .metric-card { @apply min-w-0 rounded-xl border border-stone-200/80 bg-white p-4 sm:p-5; }
+  .metric-label { @apply text-[11px] font-medium text-stone-500; }
+  .metric-value { @apply mt-5 flex items-baseline gap-1.5 text-[40px] leading-none font-semibold tracking-[-.05em] tabular-nums; }
+  .metric-value span { @apply text-xs font-normal tracking-normal text-stone-400; }
+  .metric-caption { @apply mt-4 flex items-center gap-1.5 text-[9px] leading-relaxed text-stone-400 sm:text-[10px]; }
+  .metric-primary { @apply border-[#243b30] bg-[#243b30] text-white; }
+  .metric-primary .metric-label, .metric-primary .metric-caption { @apply text-[#c2cfb9]; }
+  .metric-primary .metric-value span { @apply text-[#bdcbb3]; }
+  .panel { @apply min-w-0 rounded-xl border border-stone-200/80 bg-white p-5 sm:p-6; }
+  .connection-step { @apply flex items-center gap-2.5; }
+  .connection-step h3 { @apply text-xs font-semibold; }
+  .connection-step p { @apply mt-1 text-[10px] text-stone-400; }
+  .step-symbol { @apply flex size-9 shrink-0 items-center justify-center rounded-lg border border-stone-200 bg-stone-50 font-mono text-[10px] text-stone-400; }
+  .connection-line { @apply my-1 ml-[17px] h-4 w-px border-l border-dashed border-stone-300; }
+  .debug-list > div { @apply flex items-start justify-between gap-4 border-b border-stone-100 py-3 text-xs last:border-0; }
+  .debug-list dt { @apply text-stone-400; }
+  .debug-list dd { @apply text-right font-medium; }
+  .event-row { @apply flex items-start gap-3 border-b border-stone-100 py-3 text-stone-600 last:border-0; }
+  .event-row time { @apply pt-0.5 font-mono text-[10px] text-stone-400; }
+  .event-level { @apply min-w-12 rounded px-1.5 py-0.5 text-center text-[9px] uppercase; }
+  .guide-step { @apply flex gap-4 sm:gap-6; }
+  .guide-number { @apply flex size-9 shrink-0 items-center justify-center rounded-full bg-[#edf3e6] text-sm font-semibold text-[#66864a]; }
+  .guide-step p { @apply mt-3 max-w-3xl text-xs leading-6 text-stone-500; }
+}
+
+@media (max-width: 440px) {
+  .nav-item { gap: .4rem; padding: .7rem .45rem; font-size: 10px; }
+  .connection-step { gap: .5rem; }
+}
