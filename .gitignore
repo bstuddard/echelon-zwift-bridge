@@ -31,5 +31,7 @@ frontend/public/legal/
 captures/
 screenshots/
 diagnostics/
+phone.json
+*-phone.json
 dist/
 release/

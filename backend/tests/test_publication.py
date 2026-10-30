@@ -1,5 +1,6 @@
 """Release privacy checks must reject private data even when Git tracks it."""
 import importlib.util
+import json
 from pathlib import Path
 import subprocess
 import zipfile
@@ -26,6 +27,17 @@ def test_addresses_and_credentials_are_checked_without_echoing_values():
 def test_personal_identifiers_are_blocked():
     value = 'example-personal-identifier'
     assert publication.inspect_text(value, [(value, 'configured private value')]) == ['configured private value']
+
+
+def test_private_phone_identity_is_compared_without_echoing_it(tmp_path, monkeypatch):
+    monkeypatch.setenv('XDG_STATE_HOME',str(tmp_path))
+    directory=tmp_path/'echelon-bridge';directory.mkdir()
+    identity='private-phone-fixture-serial'
+    (directory/'phone.json').write_text(json.dumps({'serial':identity,'service':'private-phone-fixture-service'}))
+    secrets=publication.private_values(tmp_path)
+    findings=publication.inspect_text(identity,secrets)
+    assert 'configured private phone value' in findings
+    assert identity not in str(findings)
 
 
 def test_tracked_environment_file_is_not_hidden_by_gitignore(tmp_path):

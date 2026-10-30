@@ -11,7 +11,8 @@ dependencies = [
   "dbus-next==0.2.3",
   "fastapi>=0.115,<1",
   "python-dotenv>=1,<2",
-  "uvicorn>=0.30,<1",
+  "uvicorn>=0.54,<1",
+  "wsproto>=1.3,<2",
 ]
 
 [project.optional-dependencies]
@@ -19,6 +20,7 @@ dev = ["pytest>=8", "httpx>=0.28,<1"]
 
 [project.scripts]
 echelon-bridge = "echelon_bridge.__main__:main"
+echelon-mirror-setup = "echelon_bridge.phone_setup:main"
 
 [tool.uv]
 # Linux is the supported runtime. Bless's Windows requirements conflict with
@@ -47,7 +49,7 @@ include = [
   "/.gitignore", "/.env.example", "/README.md", "/SMOKE_TEST.md",
   "/VALIDATION.md", "/SECURITY.md", "/LICENSE", "/NOTICE", "/THIRD_PARTY_NOTICES.txt",
 ]
-exclude = ["**/__pycache__/**", "**/*.pyc", "**/*.pyo", "**/*.local.md", "**/*.jsonl"]
+exclude = ["**/__pycache__/**", "**/*.pyc", "**/*.pyo", "**/*.local.md", "**/*.jsonl", "**/phone.json", "**/*-phone.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]

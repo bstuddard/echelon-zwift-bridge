@@ -1,10 +1,18 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useBridge } from './useBridge'
 import PowerChart from './PowerChart.vue'
+import MirrorPage from './MirrorPage.vue'
 
 const { health, metrics, events, samples, online, loading, error, lastUpdated, refresh } = useBridge()
-const tab = ref('ride')
+const tab = ref(location.pathname === '/mirror' ? 'mirror' : 'ride')
+const followLocation = () => { tab.value = location.pathname === '/mirror' ? 'mirror' : 'ride' }
+watch(tab, (value) => {
+  const path = value === 'mirror' ? '/mirror' : '/'
+  if (location.pathname !== path) history.pushState(null, '', path)
+})
+onMounted(() => window.addEventListener('popstate', followLocation))
+onUnmounted(() => window.removeEventListener('popstate', followLocation))
 const notice = ref('')
 const m = computed(() => online.value ? metrics.value : null)
 const p = computed(() => online.value ? health.value?.peripheral : null)
@@ -29,7 +37,7 @@ const bikeLabel = computed(() => !online.value ? 'Unknown' : !health.value?.read
 const peripheralLabel = computed(() => !online.value ? 'Unknown' : !health.value?.ble_power_advertising_enabled ? 'Disabled' : p.value?.client_subscribed ? 'Client subscribed' : p.value?.advertisement_registered ? 'Advertising' : 'Starting')
 const age = computed(() => m.value?.last_cadence_age_seconds == null ? '—' : `${m.value.last_cadence_age_seconds.toFixed(1)} s`)
 const raw = computed(() => JSON.stringify({ health: health.value, metrics: metrics.value }, null, 2))
-const title = computed(() => ({ ride: 'Ride overview', diagnostics: 'Diagnostics', guide: 'Connection guide', legal: 'About & licenses' })[tab.value])
+const title = computed(() => ({ ride: 'Ride overview', mirror: 'Phone mirror', diagnostics: 'Diagnostics', guide: 'Connection guide', legal: 'About & licenses' })[tab.value])
 const eventTime = (timestamp) => new Date(timestamp).toLocaleTimeString([], { hour12: false })
 const report = () => ({ captured_at: new Date().toISOString(), api_reachable: online.value, health: health.value, metrics: metrics.value, events: events.value })
 async function copyDiagnostics() {
@@ -59,8 +67,9 @@ function downloadDiagnostics() {
         <span class="leading-tight"><strong class="block text-[15px] font-bold tracking-tight">Echelon Bridge<span class="text-[#689747]">.</span></strong><span class="text-[9px] whitespace-nowrap uppercase tracking-[.1em] text-stone-400">Your bike. Your ride.</span></span>
       </a>
       <div class="mt-9 hidden text-[10px] font-semibold uppercase tracking-[.16em] text-stone-400 lg:block">Workspace</div>
-      <nav class="mt-5 flex gap-2 lg:flex-col" aria-label="Main navigation">
+      <nav class="mt-5 flex flex-wrap gap-2 lg:flex-col lg:flex-nowrap" aria-label="Main navigation">
         <button class="nav-item" :class="{ active: tab === 'ride' }" :aria-current="tab === 'ride' ? 'page' : undefined" @click="tab = 'ride'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Ride monitor</button>
+        <button class="nav-item" :class="{ active: tab === 'mirror' }" :aria-current="tab === 'mirror' ? 'page' : undefined" @click="tab = 'mirror'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M10 5h4m-3 14h2"/></svg>Phone mirror</button>
         <button class="nav-item" :class="{ active: tab === 'diagnostics' }" :aria-current="tab === 'diagnostics' ? 'page' : undefined" @click="tab = 'diagnostics'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>Diagnostics</button>
         <button class="nav-item" :class="{ active: tab === 'guide' }" :aria-current="tab === 'guide' ? 'page' : undefined" @click="tab = 'guide'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 4m0 3v1"/></svg>Setup guide</button>
         <button class="nav-item" :class="{ active: tab === 'legal' }" :aria-current="tab === 'legal' ? 'page' : undefined" @click="tab = 'legal'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-11v1"/></svg>About</button>
@@ -104,6 +113,8 @@ function downloadDiagnostics() {
         </div>
         <section class="panel mt-5 flex flex-wrap items-center gap-4 !py-5"><span class="flex size-10 items-center justify-center rounded-xl bg-[#f0f4e9] text-xl text-[#6c854a]" aria-hidden="true">⌁</span><div class="min-w-0 flex-1 basis-48"><h2 class="text-sm font-semibold">Everything you need to troubleshoot</h2><p class="mt-1 text-xs text-stone-500">Inspect Bluetooth registration, recent events, and the live API response.</p></div><button class="btn btn-white" @click="tab = 'diagnostics'">Open diagnostics <span aria-hidden="true">↗</span></button></section>
       </template>
+
+      <MirrorPage v-else-if="tab === 'mirror'" :metrics="m" />
 
       <template v-else-if="tab === 'diagnostics'">
         <div class="mb-5 mt-8 flex flex-wrap items-end justify-between gap-3"><div><h2 class="section-title">Under the hood</h2><p class="section-subtitle">Live status and redacted events from the bridge process.</p></div><div class="flex gap-2"><button class="btn btn-white" @click="copyDiagnostics">Copy diagnostics</button><button class="btn btn-dark" @click="downloadDiagnostics">Download JSON <span aria-hidden="true">↓</span></button></div></div>

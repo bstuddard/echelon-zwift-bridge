@@ -83,6 +83,25 @@ From the project folder:
 
 The dashboard includes live values, a power graph, Bluetooth registration/subscription status, redacted events, JSON diagnostics, a setup guide, and license notices. Current values clear if the server becomes unreachable.
 
+### Optional: watch your Android phone in the dashboard
+
+The **Phone mirror** page at [http://127.0.0.1:8000/mirror](http://127.0.0.1:8000/mirror) can show Zwift running on your selected phone, with bike readings underneath. This needs a recent desktop Chrome/Chromium browser and an external **scrcpy 4.x or 5.x** installation with its matching `scrcpy-server` and Android `adb` tools. [Official scrcpy installation](https://github.com/Genymobile/scrcpy/blob/master/doc/linux.md).
+
+1. Authorize your Android phone using USB debugging or Android 11+ **Wireless debugging** with QR/code pairing. For wireless use, keep the phone and PC on the same trusted home network. The encrypted pairing method works without a USB cable. [Android pairing instructions](https://developer.android.com/tools/adb#wireless-android11-command-line).
+2. With exactly one authorized phone connected, select it once:
+
+   ```bash
+   uv run echelon-mirror-setup
+   ```
+
+3. Open **Phone mirror**, unlock the phone, open Zwift, and choose **Start mirroring**. Use the phone to control the game. **Stop**, leaving the page, hiding the browser tab, or disconnecting the phone ends capture and clears the picture. Full screen is available while streaming.
+
+Selection is stored privately under `$XDG_STATE_HOME/echelon-bridge/phone.json` (normally `~/.local/state/echelon-bridge/phone.json`), mode `0600`. Your bike's `.env` still needs only its original entry. The bridge verifies the selected phone's identity and uses only its USB connection or already-paired native ADB TLS transport. It never chooses another phone or falls back to a raw network address. If wireless viewing cannot find the transport, check that a recent ADB installation can automatically discover your paired phone.
+
+For a portable scrcpy installation, `uv run echelon-mirror-setup --help` offers explicit client, server, and ADB paths. If you already have a private selection from the desktop mirroring helper, import it with `uv run echelon-mirror-setup --import-selection /path/to/private-selection.json`; the phone can be offline during import. Run setup again after replacing/upgrading the scrcpy installation or changing the phone's discovery identity.
+
+Mirroring is **view-only**: no audio, microphone, phone controls, clipboard sharing, or recording. Phone identifiers, pairing credentials, and video are excluded from diagnostics. The viewer stays on loopback and requires a same-origin browser session; no extra LAN-facing web service is installed. Android debugging itself grants this computer broader access than the viewer uses, so turn debugging off when finished. Keep phone configuration and ADB keys private. See [SECURITY.md](SECURITY.md).
+
 ### Optional: one-click controls on Omarchy
 
 After the first setup above, run:
@@ -134,11 +153,14 @@ Read-only API routes:
 | `/api/health` | Reader, selected-address mode, task failures, and peripheral status |
 | `/api/metrics` | Current cadence, resistance, estimated watts, and freshness |
 | `/api/events` | Last 100 redacted application events in memory |
+| `/api/mirror/status` | Mirror availability and a browser session ticket; no phone identifiers |
 | `/api/scan` | Candidates; identifiers require an explicit `?identifiers=true` query |
 | `/api/estimate?cadence=90&resistance=20` | Bounded lookup; does not change the sensor output |
 | `/api/docs` | Optional API docs; its Swagger assets use a CDN |
 
 The earlier `/health`, `/metrics`, `/scan`, `/estimate`, and `/events` URLs remain aliases. Use one process/worker; Bluetooth ownership is not compatible with multiple Uvicorn workers or reload mode.
+
+The optional `/api/mirror/stream` WebSocket accepts one same-origin, ticket-authenticated viewer at a time. It receives only video from the pinned phone and accepts a fixed heartbeat; it exposes no phone-control commands. Merely opening the dashboard or checking status never starts phone capture.
 
 </details>
 

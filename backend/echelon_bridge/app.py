@@ -17,6 +17,7 @@ from .state import BikeState, PeripheralState
 from .power import estimated_watts
 from .bike_ble import read_forever, BikeDiscovery, simulate_forever
 from .cycling_power import advertise_power_forever
+from .mirror import Mirror, loopback_authority
 
 FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend_dist"
 # Wheels carry the same build inside the installed package.
@@ -25,13 +26,14 @@ if (Path(__file__).parent / "frontend_dist").is_dir():
 
 
 def create_app(settings=None, *, discovery=None, reader=read_forever,
-               advertiser=advertise_power_forever, frontend_dist=FRONTEND_DIST):
+               advertiser=advertise_power_forever, frontend_dist=FRONTEND_DIST, mirror=None):
     settings = settings or Settings.from_env()
     state = BikeState(simulated=settings.simulate)
     peripheral = PeripheralState(name=settings.name)
     discovery = discovery or BikeDiscovery(settings)
     events = RecentEvents()
     tasks = {}
+    mirror = mirror or Mirror()
 
     @asynccontextmanager
     async def lifespan(app):
@@ -49,6 +51,7 @@ def create_app(settings=None, *, discovery=None, reader=read_forever,
                 tasks["advertiser"] = asyncio.create_task(advertiser(state, peripheral, settings), name="zwift-advertiser")
             yield
         finally:
+            await mirror.shutdown()
             for task in tasks.values():
                 task.cancel()
             await asyncio.gather(*tasks.values(), return_exceptions=True)
@@ -65,6 +68,7 @@ def create_app(settings=None, *, discovery=None, reader=read_forever,
     app.state.peripheral = peripheral
     app.state.tasks = tasks
     app.state.events = events
+    app.state.mirror = mirror
 
     @app.middleware("http")
     async def security_headers(request: Request, call_next):
@@ -77,9 +81,12 @@ def create_app(settings=None, *, discovery=None, reader=read_forever,
         # Swagger's optional /api/docs uses its standard CDN assets. The admin
         # itself is fully bundled and never loads resources from third parties.
         if request.url.path != "/api/docs":
+            authority = request.headers.get("host", "")
+            socket_source = (("wss" if request.url.scheme == "https" else "ws") + "://" + authority
+                             if loopback_authority(authority) else "")
             response.headers["Content-Security-Policy"] = (
                 "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
-                "connect-src 'self'; img-src 'self' data:; object-src 'none'; "
+                f"connect-src 'self' {socket_source}; img-src 'self' data:; object-src 'none'; "
                 "frame-ancestors 'none'; base-uri 'self'; form-action 'none'"
             )
         return response
@@ -130,6 +137,12 @@ def create_app(settings=None, *, discovery=None, reader=read_forever,
     @app.get("/events", include_in_schema=False)
     async def recent_events():
         return {"events": list(events.events)}
+
+    @api.get("/mirror/status")
+    async def mirror_status():
+        return mirror.status()
+
+    api.add_api_websocket_route("/mirror/stream", mirror.stream)
 
     @app.get("/docs", include_in_schema=False)
     async def docs_redirect():

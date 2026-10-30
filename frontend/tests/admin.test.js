@@ -23,7 +23,7 @@ async function start(options) {
   wrapper = mount(App)
   await flushPromises()
 }
-afterEach(() => { wrapper?.unmount(); wrapper = undefined; vi.unstubAllGlobals() })
+afterEach(() => { wrapper?.unmount(); wrapper = undefined; history.replaceState(null, '', '/'); vi.unstubAllGlobals() })
 
 describe('live admin state', () => {
   it('explains the absent bike without inventing readings or pairing', async () => {

@@ -9,6 +9,8 @@ allowed. Run before staging or pushing, and again on built release archives.
 import argparse
 import getpass
 import ipaddress
+import json
+import os
 from pathlib import Path, PurePosixPath
 import re
 import socket
@@ -47,6 +49,19 @@ def private_values(root):
                 value = match[2].strip('"\'')
                 if len(value) >= 6:
                     values.append((value, 'configured private value'))
+    phone_file = Path(os.environ.get('XDG_STATE_HOME', Path.home() / '.local/state')) / 'echelon-bridge/phone.json'
+    if phone_file.is_file() and not phone_file.is_symlink():
+        try:
+            with phone_file.open() as stream:
+                content = stream.read(16385)
+            phone = json.loads(content) if len(content) <= 16384 else {}
+            if isinstance(phone, dict):
+                for key in ('serial', 'service', 'adb', 'server'):
+                    value = phone.get(key)
+                    if isinstance(value, str) and len(value) >= 6:
+                        values.append((value, 'configured private phone value'))
+        except (OSError, ValueError):
+            pass
     return [(value, kind) for value, kind in values if len(value) >= 4]
 
 
@@ -57,7 +72,7 @@ def forbidden_path(name):
     filename = path.name
     if filename.startswith('.env') and filename != '.env.example':
         return True
-    return (filename == 'CODEX_PROMPT.md' or filename.endswith(('.local.md', '.pem', '.key', '.p12', '.pfx', '.pyc', '.pyo', '.jsonl'))
+    return (filename in {'CODEX_PROMPT.md', 'phone.json'} or filename.endswith(('-phone.json', '.local.md', '.pem', '.key', '.p12', '.pfx', '.pyc', '.pyo', '.jsonl'))
             or '.bak' in filename or filename.endswith('-diagnostics.json'))
 
 

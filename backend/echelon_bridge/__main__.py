@@ -46,8 +46,10 @@ def main():
         asyncio.run(scan())
         return
     from .app import create_app
+    from .ws_transport import LocalWebSocketProtocol
     import uvicorn
-    uvicorn.run(create_app(settings), host="127.0.0.1", port=args.port, access_log=False)
+    uvicorn.run(create_app(settings), host="127.0.0.1", port=args.port, access_log=False,
+                ws=LocalWebSocketProtocol, ws_max_size=1024, ws_per_message_deflate=False)
 
 
 if __name__ == "__main__":
