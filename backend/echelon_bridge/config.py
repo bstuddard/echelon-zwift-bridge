@@ -3,7 +3,10 @@ from dataclasses import dataclass
 import os
 from pathlib import Path
 import re
+import sys
 from dotenv import dotenv_values
+
+WINDOWS = sys.platform == "win32"
 
 
 def enabled(name: str, default: bool = False, *, environ=None) -> bool:
@@ -23,13 +26,20 @@ class Settings:
     log_level: str = "INFO"
 
     def __post_init__(self):
+        if WINDOWS:
+            if self.advertise or self.simulate:
+                raise ValueError("Zwift broadcasting and its simulation mode require Linux")
+            if self.adapter or self.power_adapter:
+                raise ValueError("Windows uses the system Bluetooth adapter. Omit the Linux hci adapter settings.")
+            if self.trace:
+                raise ValueError("Private packet capture requires Linux. Use the dashboard diagnostics on Windows.")
         if self.reader and self.simulate:
             raise ValueError("Simulation and the live bike reader cannot run together")
         for value in (self.adapter, self.power_adapter):
             if value and not re.fullmatch(r"hci\d+", value):
                 raise ValueError("Bluetooth adapter must be named hci0, hci1, etc.")
         if self.address and not re.fullmatch(r"(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}", self.address):
-            raise ValueError("ECHELON_ADDRESS must be a Linux Bluetooth address")
+            raise ValueError("ECHELON_ADDRESS must be a colon-separated Bluetooth address")
         if self.log_level not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:
             raise ValueError("LOG_LEVEL must be DEBUG, INFO, WARNING, ERROR, or CRITICAL")
 
@@ -42,9 +52,10 @@ class Settings:
         # Parse data only: no shell execution or variable expansion. Explicit
         # process environment takes precedence, then .env, then defaults.
         env_file = Path.cwd() / ".env" if env_file is None else env_file
-        values = {**dotenv_values(env_file, interpolate=False), **os.environ}
+        values = {**dotenv_values(env_file, interpolate=False, encoding="utf-8-sig"), **os.environ}
         return cls(
-            reader=enabled("ECHELON_BLE", environ=values), advertise=enabled("BLE_ADVERTISE", environ=values),
+            reader=enabled("ECHELON_BLE", environ=values),
+            advertise=not WINDOWS and enabled("BLE_ADVERTISE", environ=values),
             simulate=enabled("ECHELON_SIMULATE", environ=values),
             adapter=values.get("ECHELON_ADAPTER") or None,
             power_adapter=values.get("BLE_POWER_ADAPTER") or None,

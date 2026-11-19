@@ -4,7 +4,11 @@ Complete the README's one-time bike selection first: scan with `uv run echelon-b
 
 Keep the Linux bridge computer near the powered bike and the Zwift device. Close the Echelon app/QZ so the bike is available. Software tests do not replace these observations.
 
-## 1. Bike to local metrics
+## Windows bike to local metrics
+
+Follow **Windows ride monitor** in the README. With the Linux bridge and other bike apps disconnected, start `uv run echelon-bridge` on the Windows PC. In the dashboard, verify that pedaling changes cadence, turning the knob changes resistance, and estimated watts follow. Stop pedaling and check that watts drop to zero. Power-cycle the bike and check that fresh readings return. In PowerShell, `Invoke-RestMethod http://127.0.0.1:8000/api/health` should report `reader_enabled` true and `ble_power_advertising_enabled` false. Stop the reader with Ctrl+C.
+
+## 1. Linux bike to local metrics
 
 For the first isolated check, stop the full background bridge and start the reader only:
 

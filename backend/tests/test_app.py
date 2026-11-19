@@ -5,6 +5,7 @@ import os
 import pytest
 from httpx import AsyncClient, ASGITransport
 
+from echelon_bridge import config
 from echelon_bridge.app import create_app
 from echelon_bridge.config import Settings
 from echelon_bridge.diagnostics import PacketCapture, safe_error
@@ -32,14 +33,15 @@ def test_tasks_are_cancelled_on_shutdown():
                 await asyncio.Event().wait()
             finally:
                 stopped.append(True)
-        app = create_app(Settings(reader=True, advertise=True), reader=task, advertiser=task)
+        app = create_app(Settings(reader=True, advertise=not config.WINDOWS), reader=task, advertiser=task)
         async with app.router.lifespan_context(app):
             await asyncio.sleep(0)
-        assert len(stopped) == 2
+        assert len(stopped) == (1 if config.WINDOWS else 2)
         assert all(task.done() for task in app.state.tasks.values())
     asyncio.run(run())
 
 
+@pytest.mark.skipif(config.WINDOWS, reason="Linux BLE peripheral simulation")
 def test_simulation_cannot_mix_with_real_bike_and_uses_test_name():
     with pytest.raises(ValueError):
         Settings(reader=True, simulate=True)
@@ -54,6 +56,7 @@ def test_simulation_cannot_mix_with_real_bike_and_uses_test_name():
     asyncio.run(run())
 
 
+@pytest.mark.skipif(config.WINDOWS, reason="Linux private packet capture")
 def test_private_capture_redacts_auth_and_unknown_packets(tmp_path):
     path = tmp_path / "trace.jsonl"
     capture = PacketCapture(path)

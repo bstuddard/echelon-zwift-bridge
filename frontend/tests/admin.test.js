@@ -26,6 +26,22 @@ async function start(options) {
 afterEach(() => { wrapper?.unmount(); wrapper = undefined; history.replaceState(null, '', '/'); vi.unstubAllGlobals() })
 
 describe('live admin state', () => {
+  it('shows Windows bike metrics and reader setup without offering a Zwift sensor or phone mirror', async () => {
+    const data = fixtures({ available: true })
+    Object.assign(data['/api/health'], { host_platform: 'windows', ble_power_advertising_enabled: false })
+    serve(data)
+    wrapper = mount(App)
+    await flushPromises()
+    expect(wrapper.find('[data-testid="power-value"]').text()).toContain('165')
+    expect(wrapper.text()).toContain('90rpm')
+    expect(wrapper.text()).toContain('20/ 32')
+    expect(wrapper.text()).not.toMatch(/Zwift|Phone mirror/)
+    await wrapper.findAll('nav button').find(button => button.text() === 'Setup guide').trigger('click')
+    expect(wrapper.text()).toContain('Ctrl+C')
+    expect(wrapper.text()).toContain('uv run echelon-bridge')
+    expect(wrapper.text()).not.toMatch(/Pair in Zwift|\.\/bridge start/)
+  })
+
   it('explains the absent bike without inventing readings or pairing', async () => {
     await start()
     expect(wrapper.text()).toContain('Wake your bike to begin')

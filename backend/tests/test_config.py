@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import pytest
 from httpx import AsyncClient, ASGITransport
 
+from echelon_bridge import config
 from echelon_bridge.app import create_app
 from echelon_bridge.bike_ble import BikeDiscovery
 from echelon_bridge.config import Settings
@@ -26,7 +27,7 @@ def test_env_loads_pin_without_modifying_process_environment(tmp_path, monkeypat
     (tmp_path / '.env').write_text(f'ECHELON_ADDRESS="{PINNED}"\nECHELON_BLE=1\nBLE_ADVERTISE=true\n')
     settings = Settings.from_env()
     assert settings.address == PINNED
-    assert settings.reader and settings.advertise
+    assert settings.reader and settings.advertise == (not config.WINDOWS)
     assert 'ECHELON_ADDRESS' not in os.environ
 
 
@@ -105,3 +106,14 @@ def test_cli_config_preflight_validates_without_starting_the_server(monkeypatch)
         pytest.fail('Configuration preflight must not start a server')
     monkeypatch.setattr('uvicorn.run', reject_startup)
     main()
+
+
+@pytest.mark.parametrize("arguments", [["--simulate"], ["--adapter", "hci1"], ["--trace", "trace.jsonl"]])
+def test_windows_reports_linux_only_options_before_startup(monkeypatch, arguments, clean_env, tmp_path):
+    from echelon_bridge.__main__ import main
+    monkeypatch.setattr(config, "WINDOWS", True)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("sys.argv", ["echelon-bridge", "--check-config", "--address", PINNED, *arguments])
+    with pytest.raises(SystemExit) as error:
+        main()
+    assert error.value.code == 2

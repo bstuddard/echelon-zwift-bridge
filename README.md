@@ -1,17 +1,52 @@
 # Echelon Bridge
 
-Use an **Echelon Connect Sport / EX-15 with Zwift**. This small Linux server reads your bike over Bluetooth and advertises **EchelonPython**, a power sensor that Zwift can pair with. A Vue + Tailwind dashboard shows live readings and connection diagnostics.
+Read an **Echelon Connect Sport / EX-15** over Bluetooth on Windows or Linux. The local dashboard shows cadence, resistance, estimated watts, and a live power graph. On Linux the bridge also advertises **EchelonPython**, a power sensor that Zwift can pair with.
 
 Power is **estimated from QZ's original wattage table**, not measured by a calibrated power meter. Turn the bike's resistance knob yourself.
 
+## Record a session on Windows or Linux
+
+Open the [ride monitor](http://127.0.0.1:8000) on the bridge computer. Click **Start session**, browse for a `.psv` history file or type its full path, then click **Start recording**. Use **Finish session** for the final summary. You can use the same file for multiple rides. Recording continues while the backend runs, even with the browser closed.
+
+The dashboard shows live watts, cadence, resistance, elapsed time, average watts, and estimated indoor distance in miles and kilometres. Distance uses the [QZ cadence-to-speed estimate](https://github.com/cagnulein/qdomyos-zwift/blob/master/src/devices/echelonconnectsport/echelonconnectsport.cpp). Average watts includes fresh zero-power readings and excludes gaps. Estimated FTP appears after 20 continuous minutes of valid power and uses 95% of the best such average. A sustained maximal effort gives this estimate its intended training meaning. [20-minute FTP test](https://www.zwift.com/uk/news/33613-best-zwift-workouts-to-improve-your-ftp-functional-threshold-power)
+
+The pipe-delimited log includes UTC timestamps, a session ID, start/sample/finish rows, and the session metrics. Missing readings produce empty fields. A normal backend shutdown finishes the active session. In a spreadsheet, select `|` as the delimiter when opening the file.
+
 ## What you need
 
-- A Linux computer with BlueZ, systemd user services, and Bluetooth LE central + peripheral support.
+- For Windows ride metrics, a Windows 10 or 11 PC with Bluetooth LE enabled. The reader uses Bleak's native WinRT backend and the system Bluetooth adapter.
+- For the Linux Zwift bridge, a Linux computer with BlueZ, systemd user services, and Bluetooth LE central + peripheral support.
 - Python **3.11–3.14**, [uv](https://docs.astral.sh/uv/getting-started/installation/), and Node.js **22.12+** with npm.
 - Your powered Echelon bike nearby, with other bike apps disconnected.
-- The **Zwift game app** on a nearby phone, tablet, Windows PC, or Mac. The bridge runs on Linux; Zwift has no official native Linux game download. [Get Zwift](https://www.zwift.com/download).
+- For Zwift rides, the **Zwift game app** on a device near the Linux bridge. [Get Zwift](https://www.zwift.com/download).
 
-## First setup
+## Windows ride monitor
+
+Open PowerShell in the project folder. Run these commands once to install the reader and build the dashboard:
+
+```powershell
+uv sync --frozen
+npm.cmd --prefix frontend ci
+npm.cmd --prefix frontend run build
+```
+
+Turn on Bluetooth, pedal to wake the bike, and disconnect any other app or Linux bridge using it. Find the bike's address:
+
+```powershell
+uv run echelon-bridge --scan
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
+notepad .env
+```
+
+Save the address from the scan as `ECHELON_ADDRESS` in that file. For each ride, start the server and open its dashboard with:
+
+```powershell
+uv run echelon-bridge --open
+```
+
+The [ride monitor](http://127.0.0.1:8000) opens on that PC. Pedal and turn the resistance knob once to see cadence, resistance, and estimated watts. Keep PowerShell open during the ride and press **Ctrl+C** to disconnect. Windows runs in reader-only mode by default. Zwift broadcasting, the Omarchy icon, private packet traces, and Android phone mirroring are Linux features.
+
+## Linux setup
 
 Download or clone this repository, then open a terminal in its folder.
 
@@ -70,7 +105,7 @@ On the device running the Zwift game:
 
 Keep the Linux computer within Bluetooth range of both the bike and the Zwift device. Zwift receives Bluetooth notifications; the dashboard address is for local administration. With the native Android/iOS Zwift game, a Companion phone relay is unnecessary.
 
-## Everyday use
+## Everyday use on Linux
 
 From the project folder:
 
@@ -151,7 +186,7 @@ Read-only API routes:
 | Route | Purpose |
 | --- | --- |
 | `/api/health` | Reader, selected-address mode, task failures, and peripheral status |
-| `/api/metrics` | Current cadence, resistance, estimated watts, and freshness |
+| `/api/metrics` | Current cadence, resistance, estimated watts, freshness, and session summary |
 | `/api/events` | Last 100 redacted application events in memory |
 | `/api/mirror/status` | Mirror availability and a browser session ticket; no phone identifiers |
 | `/api/scan` | Candidates; identifiers require an explicit `?identifiers=true` query |
@@ -159,6 +194,8 @@ Read-only API routes:
 | `/api/docs` | Optional API docs; its Swagger assets use a CDN |
 
 The earlier `/health`, `/metrics`, `/scan`, `/estimate`, and `/events` URLs remain aliases. Use one process/worker; Bluetooth ownership is not compatible with multiple Uvicorn workers or reload mode.
+
+The local dashboard uses `POST /api/session/pick-log`, `/api/session/start`, and `/api/session/finish` for recording. The current session revision prevents a stale browser tab from finishing a newer ride.
 
 The optional `/api/mirror/stream` WebSocket accepts one same-origin, ticket-authenticated viewer at a time. It receives only video from the pinned phone and accepts a fixed heartbeat; it exposes no phone-control commands. Merely opening the dashboard or checking status never starts phone capture.
 
@@ -174,7 +211,7 @@ The legacy Echelon protocol is implemented. Other Echelon models/firmware and ad
 
 ## Privacy and publishing
 
-HTTP binds only to **127.0.0.1**. Keep it local; do not expose it to the LAN or Internet. The desktop buttons use a systemd **user** service, and the HTTP API remains read-only. BLE sensor telemetry is unencrypted, and address selection is not cryptographic authentication. See [SECURITY.md](SECURITY.md).
+HTTP binds only to **127.0.0.1**. Keep it local; do not expose it to the LAN or Internet. The desktop buttons use a systemd **user** service, and the bike telemetry API remains read-only. BLE sensor telemetry is unencrypted, and address selection is not cryptographic authentication. See [SECURITY.md](SECURITY.md).
 
 Personal `.env` files, logs, packet captures, private notes, credential folders, and generated dependencies/builds are excluded from Git. Loopback addresses and clearly synthetic examples in this repo are generic defaults, not a user's network configuration.
 

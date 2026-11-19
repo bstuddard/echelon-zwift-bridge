@@ -1,14 +1,14 @@
 [project]
 name = "echelon-zwift-fastapi"
 version = "0.3.0"
-description = "Local Echelon Connect Sport to Zwift BLE bridge with FastAPI diagnostics"
+description = "Echelon Connect Sport ride monitor for Windows and Linux, with Zwift broadcasting on Linux"
 requires-python = ">=3.11,<3.15"
 license = "GPL-3.0-only"
 license-files = ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.txt"]
 dependencies = [
   "bleak==2.1.1",
-  "bless==0.3.0",
-  "dbus-next==0.2.3",
+  "bless==0.3.0; sys_platform == 'linux'",
+  "dbus-next==0.2.3; sys_platform == 'linux'",
   "fastapi>=0.115,<1",
   "python-dotenv>=1,<2",
   "uvicorn>=0.54,<1",
@@ -23,9 +23,7 @@ echelon-bridge = "echelon_bridge.__main__:main"
 echelon-mirror-setup = "echelon_bridge.phone_setup:main"
 
 [tool.uv]
-# Linux is the supported runtime. Bless's Windows requirements conflict with
-# Bleak's current WinRT dependencies; they must not constrain the Linux lock.
-environments = ["sys_platform == 'linux'"]
+environments = ["sys_platform == 'linux'", "sys_platform == 'win32'"]
 
 [build-system]
 requires = ["hatchling>=1.26"]
@@ -49,7 +47,7 @@ include = [
   "/.gitignore", "/.env.example", "/README.md", "/SMOKE_TEST.md",
   "/VALIDATION.md", "/SECURITY.md", "/LICENSE", "/NOTICE", "/THIRD_PARTY_NOTICES.txt",
 ]
-exclude = ["**/__pycache__/**", "**/*.pyc", "**/*.pyo", "**/*.local.md", "**/*.jsonl", "**/phone.json", "**/*-phone.json"]
+exclude = ["**/__pycache__/**", "**/*.pyc", "**/*.pyo", "**/*.local.md", "**/*.jsonl", "**/*.psv", "**/phone.json", "**/*-phone.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]

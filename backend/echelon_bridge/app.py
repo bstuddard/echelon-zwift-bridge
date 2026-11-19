@@ -1,4 +1,4 @@
-"""FastAPI serves the built Vue admin and a read-only, same-origin API."""
+"""Local ride dashboard, read-only telemetry, and same-origin recording controls."""
 import asyncio
 from contextlib import asynccontextmanager
 import logging
@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from . import config
 from .config import Settings
 from .diagnostics import PacketCapture, RecentEvents, safe_error
 from .state import BikeState, PeripheralState
@@ -18,6 +19,9 @@ from .power import estimated_watts
 from .bike_ble import read_forever, BikeDiscovery, simulate_forever
 from .cycling_power import advertise_power_forever
 from .mirror import Mirror, loopback_authority
+from .session import RideSession
+from .session_api import install_sessions
+from .session_log import LogError
 
 FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend_dist"
 # Wheels carry the same build inside the installed package.
@@ -29,6 +33,7 @@ def create_app(settings=None, *, discovery=None, reader=read_forever,
                advertiser=advertise_power_forever, frontend_dist=FRONTEND_DIST, mirror=None):
     settings = settings or Settings.from_env()
     state = BikeState(simulated=settings.simulate)
+    session = RideSession(state)
     peripheral = PeripheralState(name=settings.name)
     discovery = discovery or BikeDiscovery(settings)
     events = RecentEvents()
@@ -51,6 +56,10 @@ def create_app(settings=None, *, discovery=None, reader=read_forever,
                 tasks["advertiser"] = asyncio.create_task(advertiser(state, peripheral, settings), name="zwift-advertiser")
             yield
         finally:
+            try:
+                await session.finish()
+            except LogError:
+                logger.warning("event=session_log_write_failed")
             await mirror.shutdown()
             for task in tasks.values():
                 task.cancel()
@@ -100,7 +109,7 @@ def create_app(settings=None, *, discovery=None, reader=read_forever,
     @api.get("/metrics")
     @app.get("/metrics", include_in_schema=False)
     async def metrics():
-        return {**state.snapshot(), "peripheral": peripheral.snapshot()}
+        return {**state.snapshot(), "peripheral": peripheral.snapshot(), "session": session.snapshot()}
 
     @api.get("/health")
     @app.get("/health", include_in_schema=False)
@@ -110,11 +119,12 @@ def create_app(settings=None, *, discovery=None, reader=read_forever,
         ready = peripheral.gatt_started and peripheral.advertisement_registered if settings.advertise else True
         live = state.snapshot()
         return {"status": "error" if failed else ("ready" if ready and live["power_available"] else "waiting"),
+                "host_platform": "windows" if config.WINDOWS else "linux",
                 "reader_enabled": settings.reader, "simulated": settings.simulate,
                 "ble_power_advertising_enabled": settings.advertise,
                 "bike_connected": state.connected, "reader_status": state.reader_status,
                 "power_available": live["power_available"], "power_type": "estimated, not calibrated",
-                "adapter": settings.adapter or "default", "power_adapter": settings.power_adapter or "hci0",
+                "adapter": settings.adapter or "default", "power_adapter": None if config.WINDOWS else settings.power_adapter or "hci0",
                 "bike_selection": "pinned_address" if settings.address else "unconfigured",
                 "peripheral": peripheral.snapshot(), "error": state.last_error, "failed_tasks": failed}
 
@@ -140,9 +150,13 @@ def create_app(settings=None, *, discovery=None, reader=read_forever,
 
     @api.get("/mirror/status")
     async def mirror_status():
+        if config.WINDOWS:
+            return {"configured": False, "active": False, "message": "Phone mirroring is available on Linux."}
         return mirror.status()
 
-    api.add_api_websocket_route("/mirror/stream", mirror.stream)
+    install_sessions(api, session, settings)
+    if not config.WINDOWS:
+        api.add_api_websocket_route("/mirror/stream", mirror.stream)
 
     @app.get("/docs", include_in_schema=False)
     async def docs_redirect():
@@ -159,7 +173,8 @@ def create_app(settings=None, *, discovery=None, reader=read_forever,
         if any(part.startswith(".") for part in Path(path).parts):
             raise HTTPException(404, "Not found")
         if not (frontend_dist / "index.html").is_file():
-            return JSONResponse({"detail": "Admin UI has not been built. Run ./bridge build.",
+            build_command = "npm.cmd --prefix frontend run build" if config.WINDOWS else "./bridge build"
+            return JSONResponse({"detail": f"Admin UI has not been built. Run {build_command}.",
                                  "metrics": "/api/metrics"}, status_code=503)
         serves_index = path in {"", "index.html"}
         try:

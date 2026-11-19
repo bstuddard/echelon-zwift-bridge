@@ -3,6 +3,7 @@ import logging
 
 from httpx import AsyncClient, ASGITransport
 
+from echelon_bridge import config
 from echelon_bridge.app import create_app
 from echelon_bridge.config import Settings
 
@@ -43,7 +44,8 @@ def test_missing_build_explains_recovery_while_api_still_works(tmp_path):
         app = create_app(Settings(), frontend_dist=tmp_path / 'absent')
         async with app.router.lifespan_context(app), AsyncClient(transport=ASGITransport(app), base_url='http://localhost') as client:
             root = await client.get('/')
-            assert root.status_code == 503 and './bridge build' in root.text
+            command = 'npm.cmd --prefix frontend run build' if config.WINDOWS else './bridge build'
+            assert root.status_code == 503 and command in root.text
             assert (await client.get('/api/health')).status_code == 200
     asyncio.run(run())
 

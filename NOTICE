@@ -6,6 +6,8 @@ Protocol commands, packet decoding knowledge, and the default 33 x 11 power
 lookup table are adapted from QZ / qdomyos-zwift, Roberto Viola and contributors.
 https://github.com/cagnulein/qdomyos-zwift
 Source: src/devices/echelonconnectsport/echelonconnectsport.cpp
+The indoor session distance estimate uses the cadence-to-speed coefficient
+from the same QZ source, adapted for the ride dashboard on 2026-11-19.
 QZ source is distributed under GPL version 3. This derivative is GPL-3.0-only.
 The complete license is in LICENSE. Preserve this attribution and provide
 corresponding source and license notices where required on redistribution.

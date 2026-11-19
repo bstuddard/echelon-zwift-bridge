@@ -43,7 +43,7 @@ def private_values(root):
               (socket.gethostname(), 'host identifier')]
     env_file = root / '.env'
     if env_file.is_file():
-        for line in env_file.read_text().splitlines():
+        for line in env_file.read_text(encoding='utf-8-sig').splitlines():
             match = re.match(r'\s*(?:export\s+)?([A-Z][A-Z0-9_]*)\s*=\s*(.*?)\s*$', line)
             if match and re.search(r'ADDRESS|TOKEN|SECRET|PASSWORD|PRIVATE|CREDENTIAL|HOST|URL', match[1]):
                 value = match[2].strip('"\'')
@@ -66,6 +66,8 @@ def private_values(root):
 
 
 def forbidden_path(name):
+    if name.lower().endswith('.psv'):
+        return True
     path = PurePosixPath(name)
     if path.is_absolute() or '..' in path.parts or any(part in PRIVATE_PARTS for part in path.parts):
         return True
@@ -104,6 +106,8 @@ def inspect_bytes(name, data, secrets):
     findings = []
     if forbidden_path(name):
         findings.append('private or generated file path')
+    if data.startswith(b'utc|session_id|event|elapsed_s|cadence_rpm|'):
+        findings.append('private ride history')
     try:
         text = data.decode('utf-8')
     except UnicodeDecodeError:

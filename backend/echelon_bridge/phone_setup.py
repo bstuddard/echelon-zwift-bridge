@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 
+from . import config
 from .phone import Adb, PhoneError, PhoneSelection, SERVICE, read_private_json, server_digest
 
 
@@ -63,6 +64,8 @@ def main():
     parser.add_argument("--server", type=Path, help="Matching scrcpy-server file")
     parser.add_argument("--scrcpy", type=Path, help="scrcpy client executable")
     args = parser.parse_args()
+    if config.WINDOWS:
+        parser.error("Phone mirroring is available on Linux. Use echelon-bridge for Windows bike metrics.")
     try:
         adb, server, version = installation(args.adb, args.server, args.scrcpy)
         serial, service = asyncio.run(select(Adb(adb), args.import_selection))

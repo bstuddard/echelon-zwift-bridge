@@ -2,7 +2,10 @@ import asyncio
 from types import SimpleNamespace
 
 import pytest
+from httpx import ASGITransport, AsyncClient
 
+from echelon_bridge import config
+from echelon_bridge.__main__ import main
 from echelon_bridge.bike_ble import BikeDiscovery, read_session, read_forever, AuthenticationRequired
 from echelon_bridge.config import Settings
 from echelon_bridge.protocol import ECHELON_SERVICE, WRITE_UUID, NOTIFY_UUIDS, INIT_COMMANDS, poll_command
@@ -79,10 +82,10 @@ def test_subscribe_before_init_and_poll_on_selected_adapter(response):
             return client
         state = BikeState()
         with pytest.raises(ConnectionError):
-            await read_session(state, device(), Settings(adapter="hci1"), factory,
+            await read_session(state, device(), Settings(adapter=None if config.WINDOWS else "hci1"), factory,
                                sleep=no_sleep, init_timeout=0, poll_interval=0)
         client = created[0]
-        assert client.kwargs["adapter"] == "hci1"
+        assert client.kwargs.get("adapter") == (None if config.WINDOWS else "hci1")
         assert client.calls[:2] == [("notify", uuid) for uuid in NOTIFY_UUIDS]
         writes = [c for c in client.calls if c[0] == "write"]
         assert [c[1] for c in writes] == [*INIT_COMMANDS, poll_command(1)]
@@ -121,7 +124,8 @@ def test_missing_notify_permission_prevents_init():
 
 def test_scan_selection_requires_an_explicit_pin():
     async def run():
-        discovery = BikeDiscovery(Settings(adapter="hci1"), FakeScanner)
+        adapter = None if config.WINDOWS else "hci1"
+        discovery = BikeDiscovery(Settings(adapter=adapter), FakeScanner)
         FakeScanner.found = {}
         with pytest.raises(RuntimeError, match="No bike selected"):
             await discovery.find()
@@ -129,12 +133,63 @@ def test_scan_selection_requires_an_explicit_pin():
         FakeScanner.found = {"a": (d1, advertisement()), "b": (d2, advertisement())}
         with pytest.raises(RuntimeError, match="No bike selected"):
             await discovery.find()
-        discovery.settings = Settings(adapter="hci1", address=d2.address)
+        discovery.settings = Settings(adapter=adapter, address=d2.address)
         assert await discovery.find() is d2
-        assert FakeScanner.kwargs["adapter"] == "hci1"
+        assert FakeScanner.kwargs.get("adapter") == adapter
         assert "address" not in discovery.snapshot()["devices"][0]
         assert discovery.snapshot(True)["devices"][0]["address"] == d1.address
     asyncio.run(run())
+
+
+def test_windows_launcher_reads_pinned_bike_into_dashboard_without_advertising(monkeypatch, tmp_path):
+    pinned = device()
+    other = device("AA:BB:CC:DD:EE:02")
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text(f"ECHELON_ADDRESS={pinned.address}\n", encoding="utf-8-sig")
+    monkeypatch.setattr(config, "WINDOWS", True)
+    monkeypatch.delenv("ECHELON_ADDRESS", raising=False)
+    monkeypatch.setenv("BLE_ADVERTISE", "1")
+    monkeypatch.setattr("sys.argv", ["echelon-bridge"])
+    received = asyncio.Event()
+
+    async def discover(**kwargs):
+        assert "adapter" not in kwargs
+        return {bike.address: (bike, advertisement()) for bike in (other, pinned)}
+
+    class Bike(FakeClient):
+        def __init__(self, bike, **kwargs):
+            assert bike is pinned and "adapter" not in kwargs
+            super().__init__(bike, **kwargs)
+
+        async def write_gatt_char(self, char, value, response):
+            self.notifications[0](None, bytes.fromhex("f0 d2 01 14 d7"))
+            if value == poll_command(1):
+                cadence = bytearray(13)
+                cadence[:2] = b"\xf0\xd1"
+                cadence[10] = 90
+                self.notifications[0](None, cadence)
+                received.set()
+
+    async def verify(app):
+        async with app.router.lifespan_context(app), AsyncClient(transport=ASGITransport(app), base_url="http://localhost") as client:
+            await asyncio.wait_for(received.wait(), timeout=8)
+            health = (await client.get("/api/health")).json()
+            metrics = (await client.get("/api/metrics")).json()
+            assert health["host_platform"] == "windows" and health["status"] == "ready"
+            assert health["reader_enabled"] and not health["ble_power_advertising_enabled"]
+            assert set(app.state.tasks) == {"reader"}
+            assert (metrics["cadence_rpm"], metrics["resistance_level"], metrics["estimated_watts"]) == (90, 20, 165)
+            assert not (await client.get("/api/mirror/status")).json()["configured"]
+        assert not app.state.bike.connected
+
+    def run_server(app, **options):
+        assert options["host"] == "127.0.0.1"
+        asyncio.run(verify(app))
+
+    monkeypatch.setattr("bleak.BleakScanner.discover", discover)
+    monkeypatch.setattr("bleak.BleakClient", Bike)
+    monkeypatch.setattr("uvicorn.run", run_server)
+    main()
 
 
 def test_reconnect_resets_stale_resistance_and_cancellation():
