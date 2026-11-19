@@ -1,3 +1,4 @@
+import {testArtifact} from './artifacts.mjs'
 import assert from 'node:assert/strict'
 import { chromium } from 'playwright'
 import { configBase64, keyBase64 } from './mirror-video-fixture.mjs'
@@ -39,7 +40,7 @@ try {
   const color = await page.getByTestId('phone-video').evaluate((canvas) => [...canvas.getContext('2d').getImageData(1, 1, 1, 1).data])
   assert.ok(color[2] > 150 && color[0] < 60 && color[1] > 70 && color[1] < 110, 'The real browser decoder displayed the generated test video')
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
-  await page.screenshot({ path: '/tmp/echelon-mirror-desktop.png', fullPage: true })
+  await page.screenshot({ path: testArtifact('echelon-mirror-desktop.png'), fullPage: true })
   await page.getByRole('button', { name: 'Stop mirroring', exact: true }).click()
   await page.getByText('Your phone stays private until you start', { exact: true }).waitFor()
   assert.equal(await page.getByTestId('phone-video').evaluate((canvas) => [...canvas.getContext('2d').getImageData(1, 1, 1, 1).data].slice(0, 3).every((channel) => channel === 0)), true)
@@ -58,7 +59,7 @@ try {
   assert.equal(opened, 2, 'Back navigation never restarts capture')
   await page.setViewportSize({ width: 390, height: 844 })
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
-  await page.screenshot({ path: '/tmp/echelon-mirror-mobile.png', fullPage: true })
+  await page.screenshot({ path: testArtifact('echelon-mirror-mobile.png'), fullPage: true })
   assert.deepEqual(errors, [])
   console.log('Mirror browser smoke passed: real H.264 decoding, opt-in start, stop clears image, navigation releases capture, direct URL, mobile layout, no runtime errors. Only generated test video used.')
   await context.close()

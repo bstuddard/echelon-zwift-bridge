@@ -6,12 +6,18 @@ import fs from 'node:fs/promises'
 import http from 'node:http'
 import net from 'node:net'
 import path from 'node:path'
+import {tmpdir} from 'node:os'
 import { chromium } from 'playwright'
 
 const root = process.env.MIRROR_TEST_ROOT
-assert.ok(root && root.startsWith('/tmp/echelon-mirror-e2e-'), 'Use the isolated E2E runner, never a live phone server')
+assert.ok(root&&path.basename(root)==='fixture'&&path.dirname(path.dirname(root))===path.resolve(tmpdir())&&/^echelon-mirror-e2e-[a-z0-9_]+$/.test(path.basename(path.dirname(root))), 'Use the isolated E2E runner, never a live phone server')
+const fixtureStat=await fs.lstat(root)
+assert.ok(fixtureStat.isDirectory()&&!fixtureStat.isSymbolicLink()&&(fixtureStat.mode&0o777)===0o700)
+const fixture=JSON.parse(await fs.readFile(path.join(root,'fixture.json'),'utf8'))
 const base = process.env.BRIDGE_TEST_URL
+assert.equal(fixture.mode,'fake-adb-generated-video-v1');assert.equal(base,fixture.url)
 const target = new URL(base)
+assert.equal(target.protocol,'http:');assert.equal(target.hostname,'127.0.0.1')
 const wsURL = base.replace(/^http:/, 'ws:') + '/api/mirror/stream'
 const mode = (value) => fs.writeFile(path.join(root, 'mode'), value)
 const events = async () => {

@@ -1,3 +1,4 @@
+import {testArtifact} from './artifacts.mjs'
 import assert from 'node:assert/strict'
 import { chromium } from 'playwright'
 
@@ -14,7 +15,7 @@ try {
   assert.equal(await page.locator('h1').innerText(), 'Ride overview')
   assert.equal(await page.locator('.metric-primary').evaluate((node) => getComputedStyle(node).backgroundColor), 'rgb(36, 59, 48)')
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
-  await page.screenshot({ path: '/tmp/echelon-admin-desktop.png', fullPage: true })
+  await page.screenshot({ path: testArtifact('echelon-admin-desktop.png'), fullPage: true })
   await page.getByRole('button', { name: 'Diagnostics', exact: true }).click()
   await page.getByText('Recent bridge events', { exact: true }).waitFor()
   await page.locator('details summary').click()
@@ -43,7 +44,7 @@ try {
   await page.reload()
   await page.getByText('Server online', { exact: true }).waitFor()
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
-  await page.screenshot({ path: '/tmp/echelon-admin-mobile.png', fullPage: true })
+  await page.screenshot({ path: testArtifact('echelon-admin-mobile.png'), fullPage: true })
   assert.deepEqual(errors, [])
   console.log('Browser smoke passed: production assets/CSS, tabs, diagnostics, JSON download, local license copies, API loss, desktop/mobile layouts; no runtime errors.')
 } finally {

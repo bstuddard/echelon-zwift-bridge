@@ -44,6 +44,7 @@ def main():
         with socket.socket() as available:
             available.bind(('127.0.0.1',0));port=available.getsockname()[1]
         url=f'http://127.0.0.1:{port}'
+        (fixture/'fixture.json').write_text(json.dumps({'mode':'fake-adb-generated-video-v1','url':url}))
         env=os.environ.copy()
         env.update({'XDG_STATE_HOME':str(temporary/'state'),'FAKE_PHONE_ROOT':str(fixture),
                     'PATH':str(bin_dir)+os.pathsep+env['PATH'], 'PYTHONPATH':str(ROOT/'backend'),

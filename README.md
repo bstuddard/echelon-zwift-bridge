@@ -182,11 +182,16 @@ Before publishing source or release artifacts:
 
 ```bash
 uv run python scripts/check_publication.py
-uv build --sdist --wheel
-uv run python scripts/check_publication.py --archive dist/*.tar.gz --archive dist/*.whl
+./bridge build
+uv build --sdist
+uv build --wheel
+uv run python scripts/check_publication.py --archive dist/*.tar.gz
+uv run python scripts/check_publication.py --archive dist/*.whl
 ```
 
 The checker reports finding types and filenames without echoing private values. It checks current Git candidates (including already-tracked files) and archive contents; it does not certify old Git history. A matching source archive should accompany a binary release.
+
+Building the frontend first and the wheel directly from this checkout includes the current dashboard in the wheel. Check each archive separately.
 
 ## Development
 
