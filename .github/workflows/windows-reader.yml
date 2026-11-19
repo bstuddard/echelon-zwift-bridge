@@ -41,6 +41,8 @@ jobs:
             if ($health.host_platform -ne 'windows' -or $health.ble_power_advertising_enabled) { throw 'Unexpected Windows capabilities' }
             $page = Invoke-WebRequest http://127.0.0.1:8765/
             if ($page.Content -notmatch '/assets/index-') { throw 'Missing production dashboard' }
+            node frontend/tests/pedal-browser.mjs http://127.0.0.1:8765
+            if ($LASTEXITCODE -ne 0) { throw 'Pedal reminder browser checks failed' }
           } finally {
             if (!$server.HasExited) { $server.Kill(); $server.WaitForExit() }
           }

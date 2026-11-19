@@ -12,11 +12,13 @@ The dashboard shows live watts, cadence, resistance, elapsed time, average watts
 
 The pipe-delimited log includes UTC timestamps, a session ID, start/sample/finish rows, and the session metrics. Missing readings produce empty fields. A normal backend shutdown finishes the active session. In a spreadsheet, select `|` as the delimiter when opening the file.
 
-### Visual pedal reminder
+### Pedal reminder and focus mode
 
-In **Ride monitor**, switch **Pedal reminder** on and set **Target power** (45 W initially). When the last five seconds of estimated power average below your target, a large **PEDAL HARDER** message, power gauge, and amber page border pulse slowly. The next live reading at or above the target clears the pulse immediately, even while the average is lower. A new dip can alert again if the five-second average is still below target.
+In **Ride monitor**, switch **Pedal reminder** on and set **Target power** (45 W initially). When the last five seconds of estimated power average below your target, a large **PEDAL HARDER** message, power gauge, and amber page border pulse slowly, with a short beep every 1.5 seconds. The next live reading at or above the target clears the alert and sound immediately, even while the average is lower. A new dip can alert again if the five-second average is still below target. Uncheck **Beep** for a silent reminder; sound uses your browser and system volume.
 
-The reminder waits for a full five seconds of fresh readings and pauses when readings are missing, stale, or simulated. It runs only in this dashboard, so keep the page visible. Reduced-motion settings use a steady highlight. It starts off after a page reload; you can change the watt target or switch it off at any time. Recording and the bike connection are independent of this visual reminder.
+The reminder waits for a full five seconds of fresh readings and pauses when readings are missing, stale, or simulated. It runs only in this dashboard, so keep the ride page visible. Reduced-motion settings use a steady highlight. It starts off after a page reload; you can change the watt target or switch it off at any time. If your browser blocks sound, allow audio for the local dashboard and toggle **Beep** off and on.
+
+Set the reminder and target first, then click **Focus mode** for a black screen with small white five-second average watts in the center. A reminder turns the whole view solid red with white **PEDAL HARDER** text and the same optional beep. It returns to black immediately when live power reaches the target. Focus mode also works with the reminder off. Move the mouse to reveal **Exit focus**, or press **Esc**. It requests browser fullscreen; if that is unavailable, it fills the dashboard window instead. Focus mode changes presentation only: bike readings, recording, ride averages, distance, and all other statistics continue unchanged behind it.
 
 ### Remember your ride history file
 

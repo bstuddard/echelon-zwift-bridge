@@ -1,10 +1,14 @@
 <script setup>
-import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { rollingPowerAverage } from './rollingPower'
+import FocusMode from './FocusMode.vue'
+import { usePedalSound } from './usePedalSound'
 
-const props = defineProps({ metrics: Object, online: Boolean, samples: { type: Array, default: () => [] } })
+const props = defineProps({ metrics: Object, online: Boolean, samples: { type: Array, default: () => [] }, visible: { type: Boolean, default: true } })
 const enabled = ref(false)
 const target = ref(45)
+const focusOpen = ref(false)
+const soundEnabled = ref(true)
 const now = ref(Date.now())
 let timer
 onMounted(() => { timer = setInterval(() => { now.value = Date.now() }, 500) })
@@ -20,6 +24,16 @@ const live = computed(() => fresh.value ? props.metrics.estimated_watts : null)
 const average = computed(() => fresh.value ? rollingPowerAverage(props.samples, Math.max(now.value, Date.now())) : null)
 const warning = computed(() => enabled.value && validTarget.value && average.value !== null &&
   average.value < target.value && live.value < target.value)
+const { arm, unavailable: soundUnavailable } = usePedalSound(computed(() => warning.value && soundEnabled.value && props.visible))
+function toggleReminder() {
+  enabled.value = !enabled.value
+  if (enabled.value && soundEnabled.value) arm()
+}
+function openFocus() {
+  if (enabled.value && soundEnabled.value) arm()
+  focusOpen.value = true
+}
+watch(() => props.visible, visible => { if (!visible) focusOpen.value = false })
 const reached = computed(() => enabled.value && validTarget.value && live.value !== null && live.value >= target.value)
 const progress = computed(() => average.value !== null && validTarget.value ? Math.min(1, average.value / target.value) : 0)
 const ringLength = 2 * Math.PI * 51
@@ -35,15 +49,17 @@ const detail = computed(() => !validTarget.value ? 'Enter a whole number from 1 
     <div class="effort-controls">
       <div class="flex min-w-0 items-center gap-3">
         <span class="effort-symbol" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m13 2-8 12h6l-1 8 9-12h-6l1-8Z" stroke-linejoin="round"/></svg></span>
-        <div><h2 id="effort-heading" class="section-title">Pedal reminder</h2><p class="effort-caption">A visual nudge to hold your power.</p></div>
+        <div><h2 id="effort-heading" class="section-title">Pedal reminder</h2><p class="effort-caption">A nudge to hold your power.</p></div>
       </div>
       <div class="flex flex-wrap items-center gap-4">
         <label v-if="enabled" class="effort-target" for="effort-target">Target power
           <span class="effort-input"><input id="effort-target" v-model.number="target" type="number" min="1" max="2000" step="1"
             :aria-invalid="!validTarget" aria-describedby="effort-help" /><span aria-hidden="true">W</span></span>
         </label>
+        <label v-if="enabled" class="effort-sound"><input v-model="soundEnabled" type="checkbox" @change="soundEnabled && arm()" /> Beep</label>
         <button type="button" role="switch" :aria-checked="enabled" aria-label="Pedal harder reminder"
-          class="effort-switch" @click="enabled = !enabled"><span aria-hidden="true" class="effort-switch-track"><span /></span>{{ enabled ? 'On' : 'Off' }}</button>
+          class="effort-switch" @click="toggleReminder"><span aria-hidden="true" class="effort-switch-track"><span /></span>{{ enabled ? 'On' : 'Off' }}</button>
+        <button type="button" class="btn btn-white" @click="openFocus">Focus mode</button>
       </div>
     </div>
 
@@ -61,6 +77,10 @@ const detail = computed(() => !validTarget.value ? 'Enter a whole number from 1 
       </div>
     </div>
     <p v-if="enabled" id="effort-help" class="effort-help">Five-second average to alert. Live power at target to clear. Keep this dashboard visible.</p>
-    <div v-if="warning" class="effort-screen-cue" aria-hidden="true" data-testid="pedal-alert" />
+    <p v-if="enabled && soundEnabled && soundUnavailable" class="effort-help" role="status">Sound is unavailable. Allow audio in your browser, then toggle Beep off and on.</p>
+    <div v-if="warning && !focusOpen" class="effort-screen-cue" aria-hidden="true" data-testid="pedal-alert" />
+    <Teleport to="body">
+      <FocusMode v-if="focusOpen" :average="average" :warning="warning" :target="validTarget ? target : null" @close="focusOpen = false" />
+    </Teleport>
   </section>
 </template>
