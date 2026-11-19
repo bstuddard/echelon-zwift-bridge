@@ -22,7 +22,7 @@ __pycache__/
 CODEX_PROMPT.md
 .cache/
 *.jsonl
-*.psv
+*.[pP][sS][vV]
 node_modules/
 backend/frontend_dist/
 frontend/test-results/

@@ -47,7 +47,7 @@ include = [
   "/.gitignore", "/.env.example", "/README.md", "/SMOKE_TEST.md",
   "/VALIDATION.md", "/SECURITY.md", "/LICENSE", "/NOTICE", "/THIRD_PARTY_NOTICES.txt",
 ]
-exclude = ["**/__pycache__/**", "**/*.pyc", "**/*.pyo", "**/*.local.md", "**/*.jsonl", "**/*.psv", "**/phone.json", "**/*-phone.json"]
+exclude = ["**/__pycache__/**", "**/*.pyc", "**/*.pyo", "**/*.local.md", "**/*.jsonl", "**/*.[pP][sS][vV]", "**/phone.json", "**/*-phone.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
