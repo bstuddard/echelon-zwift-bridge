@@ -29,6 +29,14 @@ def test_personal_identifiers_are_blocked():
     assert publication.inspect_text(value, [(value, 'configured private value')]) == ['configured private value']
 
 
+def test_configured_log_path_is_blocked_without_echoing_it(tmp_path):
+    value = '/example/private-ride-history.psv'
+    (tmp_path / '.env').write_text(f"ECHELON_LOG_PATH='{value}'\n")
+    findings = publication.inspect_text(value, publication.private_values(tmp_path))
+    assert 'configured private value' in findings
+    assert value not in str(findings)
+
+
 def test_private_phone_identity_is_compared_without_echoing_it(tmp_path, monkeypatch):
     monkeypatch.setenv('XDG_STATE_HOME',str(tmp_path))
     directory=tmp_path/'echelon-bridge';directory.mkdir()

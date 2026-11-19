@@ -21,6 +21,11 @@ const elapsed = computed(() => {
 })
 
 watch(active, value => { if (value) choosing.value = false })
+async function chooseLog() {
+  choosing.value = true
+  error.value = ''
+  if (!path.value) await action('default-log')
+}
 async function action(name) {
   if (busy.value) return
   busy.value = true
@@ -33,7 +38,7 @@ async function action(name) {
     })
     const result = await response.json()
     if (!response.ok) throw new Error(result.detail || 'Session request failed.')
-    if (name === 'pick-log') {
+    if (name === 'pick-log' || name === 'default-log') {
       if (result.path) path.value = result.path
     } else {
       choosing.value = false
@@ -55,12 +60,12 @@ async function action(name) {
         <p class="section-subtitle">{{ active ? 'Recording to your selected history file.' : 'Track time, distance, average power, and estimated FTP.' }}</p>
       </div>
       <button v-if="active" class="btn btn-dark" :disabled="busy || !online" @click="action('finish')">Finish session</button>
-      <button v-else-if="!choosing" class="btn btn-dark" :disabled="!online || !enabled || !session" @click="choosing = true; error = ''">Start session</button>
+      <button v-else-if="!choosing" class="btn btn-dark" :disabled="busy || !online || !enabled || !session" @click="chooseLog">Start session</button>
     </div>
     <form v-if="choosing && !active" class="mt-4" @submit.prevent="action('start')">
       <label for="session-file" class="text-xs font-semibold">Ride history file (.psv)</label>
       <div class="mt-1 flex flex-wrap gap-2">
-        <input id="session-file" v-model="path" required spellcheck="false" autocomplete="off"
+        <input id="session-file" v-model="path" required :disabled="busy" spellcheck="false" autocomplete="off"
           class="min-w-0 flex-1 rounded-lg border border-stone-300 px-3 py-2 text-sm"
           :placeholder="windows ? 'Full Windows file path' : 'Full Linux file path'" />
         <button type="button" class="btn btn-white" :disabled="busy" @click="action('pick-log')">Browse…</button>

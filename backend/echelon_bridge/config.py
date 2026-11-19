@@ -23,6 +23,7 @@ class Settings:
     power_adapter: str | None = None
     address: str | None = None
     trace: Path | None = None
+    log_path: str | None = None
     log_level: str = "INFO"
 
     def __post_init__(self):
@@ -42,6 +43,12 @@ class Settings:
             raise ValueError("ECHELON_ADDRESS must be a colon-separated Bluetooth address")
         if self.log_level not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:
             raise ValueError("LOG_LEVEL must be DEBUG, INFO, WARNING, ERROR, or CRITICAL")
+        if self.log_path is not None:
+            from .session_log import history_path
+            try:
+                history_path(self.log_path)
+            except ValueError as exc:
+                raise ValueError(f"ECHELON_LOG_PATH: {exc}") from None
 
     @property
     def name(self) -> str:
@@ -61,5 +68,6 @@ class Settings:
             power_adapter=values.get("BLE_POWER_ADAPTER") or None,
             address=values.get("ECHELON_ADDRESS") or None,
             trace=Path(values["ECHELON_TRACE"]) if values.get("ECHELON_TRACE") else None,
+            log_path=values.get("ECHELON_LOG_PATH") or None,
             log_level=(values.get("LOG_LEVEL") or "INFO").upper(),
         )

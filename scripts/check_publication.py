@@ -45,7 +45,7 @@ def private_values(root):
     if env_file.is_file():
         for line in env_file.read_text(encoding='utf-8-sig').splitlines():
             match = re.match(r'\s*(?:export\s+)?([A-Z][A-Z0-9_]*)\s*=\s*(.*?)\s*$', line)
-            if match and re.search(r'ADDRESS|TOKEN|SECRET|PASSWORD|PRIVATE|CREDENTIAL|HOST|URL', match[1]):
+            if match and re.search(r'ADDRESS|TOKEN|SECRET|PASSWORD|PRIVATE|CREDENTIAL|HOST|URL|LOG_PATH', match[1]):
                 value = match[2].strip('"\'')
                 if len(value) >= 6:
                     values.append((value, 'configured private value'))

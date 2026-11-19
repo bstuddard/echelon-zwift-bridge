@@ -12,7 +12,7 @@ try {
   page.on('pageerror', error => errors.push(error.message))
   await page.goto(url)
   await page.getByRole('button', { name: 'Start session', exact: true }).click()
-  await page.getByLabel('Ride history file (.psv)').fill(path)
+  await page.waitForFunction(expected => document.getElementById('session-file')?.value === expected, path)
   await page.getByRole('button', { name: 'Start recording' }).click()
   await page.getByRole('heading', { name: 'Session in progress' }).waitFor()
   const average = page.locator('dl > div').filter({ has: page.getByText('Average power', { exact: true }) })
@@ -25,7 +25,7 @@ try {
   assert.match(await average.innerText(), /165 W/)
   assert.equal(await page.getByText('Estimated FTP', { exact: true }).count(), 1)
   assert.deepEqual(errors, [])
-  console.log('Ride session UI passed: file selection, live and average power, reload, finish and summary.')
+  console.log('Ride session UI passed: private default path, live and average power, reload, finish and summary.')
 } finally {
   await browser.close()
 }

@@ -10,7 +10,7 @@ from .config import Settings
 from .diagnostics import configure_logging
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description="Echelon bike monitor and Linux Zwift bridge")
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument("--http-only", action="store_true", help="Diagnostics only; no Bluetooth")
@@ -24,7 +24,7 @@ def main():
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--open", action="store_true", help="Open the ride dashboard in your browser after startup")
     parser.add_argument("--check-config", action="store_true", help=argparse.SUPPRESS)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     if not 1024 <= args.port <= 65535:
         parser.error("port must be between 1024 and 65535")
     try:
@@ -54,16 +54,27 @@ def main():
     options = dict(host="127.0.0.1", port=args.port, access_log=False,
                    ws=LocalWebSocketProtocol, ws_max_size=1024, ws_per_message_deflate=False)
     app = create_app(settings)
-    if args.open:
+    if args.open or config.WINDOWS:
         import webbrowser
 
         class DashboardServer(uvicorn.Server):
             async def startup(self, sockets=None):
                 await super().startup(sockets=sockets)
-                if self.started:
+                if self.started and args.open:
                     await asyncio.to_thread(webbrowser.open, f"http://127.0.0.1:{args.port}/")
 
-        DashboardServer(uvicorn.Config(app, **options)).run()
+        server = DashboardServer(uvicorn.Config(app, **options))
+        if config.WINDOWS:
+            from .windows_control import StopControl
+            with StopControl(Path.cwd(), args.port) as control:
+                async def check_stop():
+                    if control.requested():
+                        server.should_exit = True
+                server.config.callback_notify = check_stop
+                server.config.timeout_notify = 0.5
+                server.run()
+        else:
+            server.run()
     else:
         uvicorn.run(app, **options)
 

@@ -43,7 +43,7 @@ include = [
   "/frontend/src", "/frontend/scripts", "/frontend/tests",
   "/frontend/public/favicon.svg", "/frontend/index.html",
   "/frontend/package.json", "/frontend/package-lock.json", "/frontend/vite.config.js",
-  "/bridge", "/hatch_build.py", "/pyproject.toml", "/uv.lock",
+  "/bridge", "/Start Echelon Bridge.bat", "/Stop Echelon Bridge.bat", "/hatch_build.py", "/pyproject.toml", "/uv.lock",
   "/.gitignore", "/.env.example", "/README.md", "/SMOKE_TEST.md",
   "/VALIDATION.md", "/SECURITY.md", "/LICENSE", "/NOTICE", "/THIRD_PARTY_NOTICES.txt",
 ]

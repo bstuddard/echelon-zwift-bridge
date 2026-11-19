@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import nullcontext
 from types import SimpleNamespace
 
 import pytest
@@ -182,13 +183,15 @@ def test_windows_launcher_reads_pinned_bike_into_dashboard_without_advertising(m
             assert not (await client.get("/api/mirror/status")).json()["configured"]
         assert not app.state.bike.connected
 
-    def run_server(app, **options):
-        assert options["host"] == "127.0.0.1"
-        asyncio.run(verify(app))
+    def run_server(server):
+        assert server.config.host == "127.0.0.1"
+        asyncio.run(verify(server.config.app))
 
     monkeypatch.setattr("bleak.BleakScanner.discover", discover)
     monkeypatch.setattr("bleak.BleakClient", Bike)
-    monkeypatch.setattr("uvicorn.run", run_server)
+    monkeypatch.setattr("uvicorn.Server.run", run_server)
+    monkeypatch.setattr("echelon_bridge.windows_control.StopControl",
+                        lambda *args: nullcontext(SimpleNamespace(requested=lambda: False)))
     main()
 
 

@@ -38,6 +38,27 @@ def test_explicit_environment_overrides_file(tmp_path, monkeypatch, clean_env):
     assert Settings.from_env(env_file).address == OTHER
 
 
+def test_default_log_is_private_config_and_does_not_create_a_file(tmp_path, monkeypatch, clean_env):
+    env_file = tmp_path / '.env'
+    path = tmp_path / 'my rides.psv'
+    env_file.write_text(f"ECHELON_LOG_PATH='{path.as_posix()}'\n")
+    assert Settings.from_env(env_file).log_path == path.as_posix()
+    assert not path.exists()
+    assert 'ECHELON_LOG_PATH' not in os.environ
+    override = str(tmp_path / 'other.psv')
+    monkeypatch.setenv('ECHELON_LOG_PATH', override)
+    assert Settings.from_env(env_file).log_path == override
+    monkeypatch.setenv('ECHELON_LOG_PATH', '')
+    assert Settings.from_env(env_file).log_path is None
+
+
+@pytest.mark.parametrize('value', ['relative.psv', '${HOME}/rides.psv', '$(touch injected-file)', 'C:\\rides.txt'])
+def test_invalid_default_log_fails_without_echoing_the_private_path(value):
+    with pytest.raises(ValueError, match='ECHELON_LOG_PATH') as error:
+        Settings(log_path=value)
+    assert value not in str(error.value)
+
+
 @pytest.mark.parametrize('value', ['not-a-bluetooth-address', '${OTHER_ADDRESS}', '$(touch injected-file)'])
 def test_invalid_pin_fails_instead_of_enabling_discovery(tmp_path, monkeypatch, clean_env, value):
     monkeypatch.chdir(tmp_path)

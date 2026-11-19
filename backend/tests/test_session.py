@@ -59,6 +59,38 @@ def test_history_file_rejects_unrelated_content_and_concurrent_writers(tmp_path)
             open_history(invalid)
 
 
+@pytest.mark.parametrize('configured', [False, True])
+def test_default_log_requires_local_same_origin_revision_and_stays_out_of_diagnostics(tmp_path, configured):
+    async def run():
+        path = str(tmp_path / 'private default.psv') if configured else None
+        async def idle_reader(*args, **kwargs):
+            await asyncio.Event().wait()
+        app = create_app(Settings(reader=True, log_path=path), reader=idle_reader)
+        async with app.router.lifespan_context(app), AsyncClient(transport=ASGITransport(app), base_url='http://localhost') as client:
+            revision = (await client.get('/api/metrics')).json()['session']['revision']
+            endpoint = '/api/session/default-log'
+            headers = {'Origin': 'http://localhost', 'X-Session-Revision': revision}
+            assert (await client.get(endpoint)).status_code == 405
+            for origin in [None, 'null', 'https://untrusted.example']:
+                denied = {'X-Session-Revision': revision}
+                if origin is not None:
+                    denied['Origin'] = origin
+                assert (await client.post(endpoint, headers=denied)).status_code == 403
+            assert (await client.post(endpoint, headers={**headers, 'X-Session-Revision': 'stale'})).status_code == 409
+            response = await client.post(endpoint, headers=headers)
+            assert response.status_code == 200 and response.json() == {'path': path or ''}
+            assert response.headers['cache-control'] == 'no-store'
+            for route in ['/api/health', '/api/metrics', '/api/events']:
+                payload = (await client.get(route)).text
+                assert 'log_path' not in payload and (not path or 'private default.psv' not in payload)
+            remote = ASGITransport(app, client=('192.0.2.1', 12345))
+            async with AsyncClient(transport=remote, base_url='http://localhost') as other:
+                assert (await other.post(endpoint, headers=headers)).status_code == 403
+            assert (await client.get('/api/metrics')).json()['session']['status'] == 'idle'
+            assert not list(tmp_path.iterdir())
+    asyncio.run(run())
+
+
 def test_session_api_records_multiple_rides_and_preserves_prior_history(tmp_path):
     async def run():
         async def fake_bike(bike, *args, **kwargs):

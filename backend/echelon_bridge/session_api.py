@@ -28,6 +28,13 @@ def install_sessions(api, session, settings):
             raise HTTPException(409, "Start the live bike reader to record a session.")
         return revision
 
+    @api.post("/session/default-log")
+    async def default_log(request: Request):
+        authorize(request)
+        # Personal paths are available only to the same-origin recording form,
+        # never to the public telemetry or downloadable diagnostics.
+        return {"path": settings.log_path or ""}
+
     @api.post("/session/pick-log")
     async def pick_log(request: Request):
         authorize(request)

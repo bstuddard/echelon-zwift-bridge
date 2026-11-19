@@ -22,12 +22,12 @@ async def fixture_reader(bike, *args, **kwargs):
 
 
 async def main():
-    app = create_app(Settings(reader=True), reader=fixture_reader)
-    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", log_level="warning"))
     with tempfile.TemporaryDirectory() as scratch, socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         url = f"http://127.0.0.1:{listener.getsockname()[1]}"
         path = Path(scratch) / "test-ride.psv"
+        app = create_app(Settings(reader=True, log_path=str(path)), reader=fixture_reader)
+        server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", log_level="warning"))
         task = asyncio.create_task(server.serve(sockets=[listener]))
         try:
             async with asyncio.timeout(10):

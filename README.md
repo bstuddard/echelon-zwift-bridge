@@ -12,6 +12,24 @@ The dashboard shows live watts, cadence, resistance, elapsed time, average watts
 
 The pipe-delimited log includes UTC timestamps, a session ID, start/sample/finish rows, and the session metrics. Missing readings produce empty fields. A normal backend shutdown finishes the active session. In a spreadsheet, select `|` as the delimiter when opening the file.
 
+### Visual pedal reminder
+
+In **Ride monitor**, switch **Pedal reminder** on and set **Target power** (45 W initially). When the last five seconds of estimated power average below your target, a large **PEDAL HARDER** message, power gauge, and amber page border pulse slowly. The next live reading at or above the target clears the pulse immediately, even while the average is lower. A new dip can alert again if the five-second average is still below target.
+
+The reminder waits for a full five seconds of fresh readings and pauses when readings are missing, stale, or simulated. It runs only in this dashboard, so keep the page visible. Reduced-motion settings use a steady highlight. It starts off after a page reload; you can change the watt target or switch it off at any time. Recording and the bike connection are independent of this visual reminder.
+
+### Remember your ride history file
+
+Set `ECHELON_LOG_PATH` in your private `.env` to an absolute local `.psv` path. For example, replace this placeholder with your own Windows path:
+
+```dotenv
+ECHELON_LOG_PATH='C:/Users/YourName/Documents/Echelon Bridge/rides.psv'
+```
+
+Create the containing folder first, then restart the server after changing `.env`. **Start session** prefills this path; you can edit it or browse for another file. **Start recording** still starts each ride explicitly. Startup and opening the form never create or modify the history file. Leave the setting blank to choose a path each time. Linux accepts an absolute local path too.
+
+`.env` and `.psv` files are ignored by Git and excluded from release source archives. The shared `.env.example` contains only an empty setting. The personal path is omitted from telemetry and downloaded diagnostics, and the publication checker detects it if copied into a source file.
+
 ## What you need
 
 - For Windows ride metrics, a Windows 10 or 11 PC with Bluetooth LE enabled. The reader uses Bleak's native WinRT backend and the system Bluetooth adapter.
@@ -45,6 +63,20 @@ uv run echelon-bridge --open
 ```
 
 The [ride monitor](http://127.0.0.1:8000) opens on that PC. Pedal and turn the resistance knob once to see cadence, resistance, and estimated watts. Keep PowerShell open during the ride and press **Ctrl+C** to disconnect. Windows runs in reader-only mode by default. Zwift broadcasting, the Omarchy icon, private packet traces, and Android phone mirroring are Linux features.
+
+### Windows batch launcher and desktop shortcut
+
+After installing the dependencies and building the dashboard, double-click **Start Echelon Bridge.bat** in the project folder. It selects the correct working folder, uses the installed `.venv`, and reads your private `.env`. If setup is incomplete, it displays the commands you need. It does not install packages on each launch.
+
+Double-click **Stop Echelon Bridge.bat** to finish any active recording, disconnect Bluetooth, and shut down the server. It also works for a server running in the background, and is safe to click again when the server is stopped. Both batch files use the folder they are stored in. Stop controls this checkout's server on the default port 8000 in the current Windows session.
+
+For matching **Start Echelon Bridge** and **Stop Echelon Bridge** desktop shortcuts, run this from PowerShell in the project folder:
+
+```powershell
+uv run --frozen python scripts/install_windows_shortcut.py
+```
+
+**Start** opens the existing dashboard if the bridge is already running; otherwise it starts the server and opens the browser. Keep the server console open during your ride; use **Stop** or press **Ctrl+C** there when finished. Keep both batch files in the project folder; use shortcuts to launch them from elsewhere. The installer creates or updates this checkout's shortcuts without administrator rights or changes to PowerShell execution policy, and renames its older **Echelon Bridge** shortcut to **Start Echelon Bridge**. If you move the checkout, remove the old shortcuts and run the installer again. Use `--destination` to choose another existing folder. A server launched before the stop control was installed needs one restart before **Stop** can control it.
 
 ## Linux setup
 

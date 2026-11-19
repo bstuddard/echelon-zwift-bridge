@@ -4,6 +4,7 @@ import { useBridge } from './useBridge'
 import PowerChart from './PowerChart.vue'
 import MirrorPage from './MirrorPage.vue'
 import SessionPanel from './SessionPanel.vue'
+import PedalAlert from './PedalAlert.vue'
 
 const { health, metrics, events, samples, online, loading, error, lastUpdated, refresh } = useBridge()
 const windowsHost = computed(() => health.value?.host_platform === 'windows')
@@ -100,6 +101,7 @@ function downloadDiagnostics() {
         <span class="status-icon" aria-hidden="true">{{ status.icon }}</span><div class="min-w-0 flex-1"><h2 class="text-sm font-semibold">{{ status.title }}</h2><p class="mt-1 text-xs leading-relaxed opacity-75">{{ status.detail }}</p></div><button v-if="tab !== 'guide'" class="hidden text-xs font-semibold whitespace-nowrap sm:block" @click="tab = 'guide'">View guide <span class="ml-1" aria-hidden="true">↗</span></button>
       </section>
 
+      <PedalAlert v-show="tab === 'ride'" :metrics="m" :online="online" :samples="samples" />
       <template v-if="tab === 'ride'">
         <SessionPanel :session="metrics?.session" :online="online" :enabled="health?.reader_enabled && !simulated"
           :windows="windowsHost" :refresh="refresh" />

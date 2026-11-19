@@ -14,7 +14,8 @@ class LogError(ValueError):
     pass
 
 
-def open_history(location):
+def history_path(location):
+    """Validate a local history path without touching the filesystem."""
     if not isinstance(location, str) or not location or len(location) > 4096 or any(ord(c) < 32 for c in location):
         raise LogError("Enter the full path to a .psv file.")
     path = Path(location)
@@ -22,6 +23,11 @@ def open_history(location):
         raise LogError("Choose a .psv file using its full local path.")
     if os.name == "nt" and (path.drive.startswith("\\\\") or any(":" in p or Path(p).is_reserved() for p in path.parts[1:])):
         raise LogError("Choose a normal file on a local Windows drive.")
+    return path
+
+
+def open_history(location):
+    path = history_path(location)
     try:
         info = path.lstat()
     except FileNotFoundError:
