@@ -250,3 +250,81 @@ def test_write_error_drops_live_values_and_retries():
         assert retries == [2]
         assert "write failed" in state.last_error
     asyncio.run(run())
+
+
+@pytest.mark.parametrize("disconnect_during_write", [False, True])
+def test_successful_initialization_resets_backoff_before_disconnect_cleanup(disconnect_during_write):
+    async def run():
+        state = BikeState()
+
+        class Discovery:
+            attempts = 0
+
+            async def find(self):
+                self.attempts += 1
+                if self.attempts <= 2:
+                    raise RuntimeError("Bike not advertising yet")
+                if self.attempts > 4:
+                    raise asyncio.CancelledError
+                return device()
+
+        class InterruptedClient(FakeClient):
+            async def write_gatt_char(self, char, value, response):
+                if value == poll_command(1):
+                    assert state.initialized
+                    if disconnect_during_write:
+                        self.is_connected = False
+                        self.disconnected(self)
+                    # A Windows cancellation can occur after the callback, or
+                    # cleanup can trigger the callback while unwinding the write.
+                    raise OSError(-2147023673, "The operation was canceled by the user")
+                await super().write_gatt_char(char, value, response)
+                self.notifications[0](None, bytes.fromhex("f0 d2 01 14 d7"))
+
+        retries = []
+
+        async def sleep(seconds):
+            if seconds >= 2:
+                assert not state.connected and not state.initialized
+                assert state.resistance is None
+                retries.append(seconds)
+
+        with pytest.raises(asyncio.CancelledError):
+            await read_forever(state, Settings(reader=True), Discovery(),
+                               client_factory=InterruptedClient, sleep=sleep)
+        assert retries == [2, 4, 2, 2]
+        assert state.reader_status == "stopped"
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("auth", [False, True])
+def test_failed_initialization_keeps_backoff_and_auth_wait(auth):
+    async def run():
+        class Discovery:
+            attempts = 0
+
+            async def find(self):
+                self.attempts += 1
+                if self.attempts > 6:
+                    raise asyncio.CancelledError
+                return device()
+
+        def factory(*args, **kwargs):
+            client = FakeClient(*args, **kwargs)
+            client.auth = auth
+            client.fail_write = not auth
+            return client
+
+        retries = []
+
+        async def sleep(seconds):
+            if seconds >= 2:
+                retries.append(seconds)
+
+        with pytest.raises(asyncio.CancelledError):
+            await read_forever(BikeState(), Settings(reader=True), Discovery(),
+                               client_factory=factory, sleep=sleep)
+        assert retries == ([60] * 6 if auth else [2, 4, 8, 16, 30, 30])
+
+    asyncio.run(run())

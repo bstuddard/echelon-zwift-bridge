@@ -193,6 +193,7 @@ The installer runs as your user, backs up the bar configuration, and writes only
 ## If something is not connecting
 
 - **No bike:** power/wake it, close competing bike apps, check the address in `.env`, and wait for a scan/retry (up to about 40 seconds). An absent selected bike never causes a connection to another device.
+- **Connection drops:** a successfully initialized connection resets the retry delay to two seconds; scanning and connection setup take additional time. Consecutive failed attempts back off to 30 seconds. On Windows, a cancellation error following `bike_disconnected` does not identify the cause of the lost link. For repeated drops while pedaling, check competing bike apps and the adapter's driver and power-saving settings using [Microsoft's Bluetooth troubleshooting steps](https://support.microsoft.com/en-us/windows/hardware/bluetooth/bluetooth-keeps-disconnecting-in-windows). Recording remains active across reconnects and excludes missing readings from power and distance calculations.
 - **Unknown resistance:** turn the knob once; some firmware only reports resistance on changes.
 - **Zwift cannot see the sensor:** open Diagnostics, verify the advertisement is registered, and disconnect nRF Connect or other sensor clients. A Bluetooth subscription does not identify the client app; confirm the connection in Zwift.
 - **Drops with one adapter:** some adapters cannot connect to the bike and advertise reliably together. Use two adapters with `./bridge start --adapter hci1 --power-adapter hci0` after stopping the old instance.

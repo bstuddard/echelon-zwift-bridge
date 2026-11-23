@@ -65,7 +65,8 @@ class AuthenticationRequired(RuntimeError):
 
 
 async def read_session(state, device, settings, client_factory, *, capture=None,
-                       sleep=asyncio.sleep, init_timeout=0.3, poll_interval=2.0):
+                       sleep=asyncio.sleep, init_timeout=0.3, poll_interval=2.0,
+                       on_initialized=None):
     wake = asyncio.Event()
     notification = asyncio.Event()
 
@@ -131,6 +132,8 @@ async def read_session(state, device, settings, client_factory, *, capture=None,
             raise AuthenticationRequired(state.last_error)
         state.initialized = True
         state.reader_status = "reading"
+        if on_initialized is not None:
+            on_initialized()
         log.info("event=bike_initialized write_response=%s", response)
         counter = 1
         while client.is_connected and state.connected:
@@ -156,25 +159,32 @@ async def read_forever(state: BikeState, settings=None, discovery=None, *, clien
     discovery = discovery or BikeDiscovery(settings)
     client_factory = client_factory or BleakClient
     delay = 2.0
+
+    def reset_backoff():
+        nonlocal delay
+        # The disconnect callback clears live state before the exception reaches
+        # this loop. Record success here instead of inspecting that cleared state.
+        delay = 2.0
+
     try:
         while True:
             try:
                 state.reader_status = "scanning"
                 device = await discovery.find()
                 log.info("event=bike_found")
-                await read_session(state, device, settings, client_factory, capture=capture, sleep=sleep)
+                await read_session(state, device, settings, client_factory, capture=capture,
+                                   sleep=sleep, on_initialized=reset_backoff)
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                was_initialized = state.initialized
                 state.reset_connection()
                 state.last_error = safe_error(exc)
                 state.reader_status = "auth_required" if state.auth_required else "retrying"
                 state.reconnects += 1
-                wait = 60 if state.auth_required else (2 if was_initialized else delay)
+                wait = 60 if state.auth_required else delay
                 log.warning("event=reader_retry seconds=%s error=%s", wait, state.last_error)
                 await sleep(wait)
-                delay = 2 if was_initialized else min(delay * 2, 30)
+                delay = min(delay * 2, 30)
     finally:
         state.reset_connection()
         state.reader_status = "stopped"
